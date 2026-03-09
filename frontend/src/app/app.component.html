@@ -1,0 +1,61 @@
+<main class="container">
+  <h1>{{ title }}</h1>
+  <p class="subtitle">Simple Angular frontend for your Spring Boot Task API</p>
+
+  <section class="panel">
+    <h2>Create Task</h2>
+
+    <form (ngSubmit)="createTask()" #taskForm="ngForm" class="form-grid">
+      <label>
+        Title
+        <input type="text" name="title" [(ngModel)]="newTask.title" required />
+      </label>
+
+      <label>
+        Due Date
+        <input type="datetime-local" name="dateDue" [(ngModel)]="newTask.dateDue" required />
+      </label>
+
+      <label class="full-width">
+        Description
+        <textarea name="description" [(ngModel)]="newTask.description" rows="3"></textarea>
+      </label>
+
+      <button type="submit">Add Task</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="row">
+      <h2>Tasks</h2>
+      <button type="button" (click)="loadTasks()">Refresh</button>
+    </div>
+
+    @if (loading) {
+      <p>Loading tasks...</p>
+    }
+
+    @if (error) {
+      <p class="error">{{ error }}</p>
+    }
+
+    @if (!loading && tasks.length === 0) {
+      <p>No tasks yet.</p>
+    }
+
+    @if (tasks.length > 0) {
+      <ul class="task-list">
+        @for (task of tasks; track task.id ?? task.title) {
+          <li [ngClass]="{ done: task.completed }">
+            <div class="title-row">
+              <strong>{{ task.title }}</strong>
+              <span class="status">{{ task.completed ? 'Completed' : 'Pending' }}</span>
+            </div>
+            <p>{{ task.description || 'No description' }}</p>
+            <small>Due: {{ task.dateDue | date:'medium' }}</small>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</main>

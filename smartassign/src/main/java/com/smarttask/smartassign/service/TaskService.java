@@ -2,39 +2,210 @@ package com.smarttask.smartassign.service;
 
 import com.smarttask.smartassign.Repositories.TaskRepository;
 import com.smarttask.smartassign.model.Task;
-
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class TaskService {
 
-	private final TaskRepository taskRepository;
+    private final TaskRepository taskRepository;
+    private final SmartAIService smartAIService;
 
-	@Autowired
-	public TaskService(TaskRepository taskRepository) {
-		this.taskRepository = taskRepository;
-	}
+    @Autowired
+    public TaskService(TaskRepository taskRepository, SmartAIService smartAIService) {
+        this.taskRepository = taskRepository;
+        this.smartAIService = smartAIService;
+    }
 
-	public List<Task> getAllTasks() {
-		return taskRepository.findAll();
-	}
+    public List<Task> getAllTasks() {
+        return taskRepository.findAll();
+    }
 
-	public Task getTaskById(String id) {
-		return taskRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found with id: " + id));
-	}
+    public Task getTaskById(String id) {
+        ObjectId oid = new ObjectId(id);
+        return taskRepository.findById(oid)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found with id: " + id));
+    }
 
-	public Task createTask(Task task) {
-		return taskRepository.save(task);
-	}
+    @Transactional
+    public Task createTask(Task task) {
+        if (task.getDateCreated() == null) {
+            task.setDateCreated(LocalDateTime.now());
+        }
 
-	public Task updateTask(String id, Task updatedTask) {
-		return taskRepository.save(updatedTask);
-	}
+        // Save task first to assign ObjectId
+        Task saved = taskRepository.save(task);
 
-	public void deleteTask(String id) {
-		taskRepository.deleteById(id);
-	}
+        // Populate subtask IDs and parent references
+        if (saved.getSubtasks() != null) {
+            LocalDateTime previousDue = null;
+            for (int i = 0; i < saved.getSubtasks().size(); i++) {
+                Task.Subtask st = saved.getSubtasks().get(i);
+                if (st.getId() == null) {
+                    st.setId(new ObjectId().toHexString());
+                }
+                st.setParentId(saved.getId());
+                if (st.getDateStart() == null) {
+                    // First subtask uses task's dateCreated, others use previous subtask's dateDue
+                    if (i == 0) {
+                        st.setDateStart(saved.getDateCreated());
+                    } else {
+                        st.setDateStart(previousDue);
+                    }
+                }
+                // Compute subtask duration
+                st.computeDuration();
+                previousDue = st.getDateDue();
+            }
+            // Compute task duration (will sum subtask durations)
+            saved.computeDuration();
+            saved = taskRepository.save(saved);
+        } else {
+            // No subtasks: compute duration from task dates
+            saved.computeDuration();
+            saved = taskRepository.save(saved);
+        }
+
+        return saved;
+    }
+
+    @Transactional
+    public Task generateSubTask(String taskId, Boolean rearrange) {
+        Task task = getTaskById(taskId);
+        String prompt = """
+            You are an intelligent task optimizer. The user has an existing task with no existing subtasks.
+            The goal is to create new subtasks to fit better with the main task's due date and logical order. The due date of the subtasks should be between the date created and the duedate of the main task logically. THEY SHOULD NOT BE OUTSIDE THIS RANGE.
+            Each subtask should be highly descriptive and detailed. And if you feel that the main task description is not detailed enough, return the json object {fix: "detail description"}
+
+            MAIN TASK:
+            %s
+
+            MAIN TASK DESCRIPTION:
+            %s
+
+            MAIN TASK CREATION DATE:
+            %s
+
+            MAIN TASK DUE DATE:
+            %s
+
+            Please revise and return ONE improved subtask JSON object that should replace or refine one of the existing subtasks.
+            """.formatted(task.getTitle(), task.getDescription(), task.getDateCreated(), task.getDateDue());
+        if (rearrange) {
+            prompt = """
+                You are an intelligent task optimizer. The user has an existing task with subtasks that may not be well organized or time-balanced.
+                The goal is to improve the subtasks to fit better with the main task's due date and logical order. The due date of the subtasks should be between the date created and the duedate of the main task logically.
+                You do not have to add new tasks and can just edit the tasks that already exist, but adding a task or two can be an option (try not to do it too often).
+                Adjust or merge subtasks if needed, and add more details to each description.
+
+                MAIN TASK:
+                %s
+
+                EXISTING SUBTASKS:
+                %s
+
+                Please revise and return ONE improved subtask JSON object that should replace or refine one of the existing subtasks.
+                """.formatted(task.getDescription(), task.getSubtasks().toString());
+        }
+        List<Task.Subtask> subtasks = smartAIService.generateSubtasks(prompt);
+        for (Task.Subtask sub : task.getSubtasks()) {
+            sub.setParentId(task.getId());
+        }
+        task.getSubtasks().addAll(subtasks);
+        
+        for (Task.Subtask st : task.getSubtasks()) {
+            st.computeDuration();
+        }
+        
+        task.computeDuration();
+        
+        return taskRepository.save(task);
+    }
+
+    @Transactional
+    public Task adjustSubtaskFrame(String taskID) {
+        Task task = getTaskById(taskID);
+
+        if (task.getSubtasks() != null && !task.getSubtasks().isEmpty() &&
+            LocalDateTime.now().isAfter(task.getSubtasks().get(0).getDateDue())) {
+
+            smartAIService.adjustSubtaskFrame(task);
+            
+            computeAllDurations(task);
+            
+            return taskRepository.save(task);
+        }
+        return null;
+    }
+
+    public Task extendTaskDueDate(String taskID) {
+        Task task = getTaskById(taskID);
+        if (task != null) {
+            smartAIService.recommendExtension(task, 0.4, 0.5);
+            computeAllDurations(task);
+            return taskRepository.save(task);
+        }
+        return null;
+    }
+
+    private void computeAllDurations(Task task) {
+        if (task.getSubtasks() != null) {
+            for (Task.Subtask subtask : task.getSubtasks()) {
+                subtask.computeDuration();
+            }
+        }
+        task.computeDuration();
+    }
+
+
+    public Task updateTask(String id, Task updatedTask) {
+        updatedTask.setId(id);
+        ObjectId parentId = new ObjectId(id);
+        Task existingTask = getTaskById(id);
+
+        if (updatedTask.getSubtasks() != null) {
+            LocalDateTime previousDue = null;
+            for (int i = 0; i < updatedTask.getSubtasks().size(); i++) {
+                Task.Subtask st = updatedTask.getSubtasks().get(i);
+                if (st.getId() == null) {
+                    st.setId(new ObjectId().toHexString());
+                }
+                st.setParentId(parentId.toHexString());
+                if (st.getDateStart() == null) {
+                    if (i == 0) {
+                        st.setDateStart(existingTask.getDateCreated());
+                    } else {
+                        st.setDateStart(previousDue);
+                    }
+                }
+                st.computeDuration();
+                previousDue = st.getDateDue();
+            }
+        }
+        
+        updatedTask.computeDuration();
+
+        return taskRepository.save(updatedTask);
+    }
+
+    @Transactional
+    public void deleteTask(String id) {
+        taskRepository.deleteById(new ObjectId(id));
+    }
+
+    @Transactional
+    public void deleteSubTask(String taskId, String subtaskId) {
+        Task task = getTaskById(taskId);
+        if (task.getSubtasks() != null) {
+            task.getSubtasks().removeIf(subtask ->
+                    subtask.getId() != null && subtask.getId().equals(subtaskId)
+            );
+            task.computeDuration();
+            taskRepository.save(task);
+        }
+    }
 }
