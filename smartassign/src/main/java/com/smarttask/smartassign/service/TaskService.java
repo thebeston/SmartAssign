@@ -1,6 +1,7 @@
 package com.smarttask.smartassign.service;
 
 import com.smarttask.smartassign.Repositories.TaskRepository;
+import com.smarttask.smartassign.exception.TaskNotFoundException;
 import com.smarttask.smartassign.model.Task;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,9 +27,15 @@ public class TaskService {
     }
 
     public Task getTaskById(String id) {
-        ObjectId oid = new ObjectId(id);
+        ObjectId oid;
+        try {
+            oid = new ObjectId(id);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Invalid task id format: " + id);
+        }
+
         return taskRepository.findById(oid)
-                .orElseThrow(() -> new IllegalArgumentException("Task not found with id: " + id));
+                .orElseThrow(() -> new TaskNotFoundException("Task not found with id: " + id));
     }
 
     @Transactional
@@ -37,40 +44,32 @@ public class TaskService {
             task.setDateCreated(LocalDateTime.now());
         }
 
-        // Save task first to assign ObjectId
-        Task saved = taskRepository.save(task);
+        if (task.getId() == null) {
+            task.setId(new ObjectId().toHexString());
+        }
 
-        // Populate subtask IDs and parent references
-        if (saved.getSubtasks() != null) {
+        if (task.getSubtasks() != null) {
             LocalDateTime previousDue = null;
-            for (int i = 0; i < saved.getSubtasks().size(); i++) {
-                Task.Subtask st = saved.getSubtasks().get(i);
+            for (int i = 0; i < task.getSubtasks().size(); i++) {
+                Task.Subtask st = task.getSubtasks().get(i);
+
                 if (st.getId() == null) {
                     st.setId(new ObjectId().toHexString());
                 }
-                st.setParentId(saved.getId());
+
+                st.setParentId(task.getId());
+
                 if (st.getDateStart() == null) {
-                    // First subtask uses task's dateCreated, others use previous subtask's dateDue
-                    if (i == 0) {
-                        st.setDateStart(saved.getDateCreated());
-                    } else {
-                        st.setDateStart(previousDue);
-                    }
+                    st.setDateStart(i == 0 ? task.getDateCreated() : previousDue);
                 }
-                // Compute subtask duration
+
                 st.computeDuration();
                 previousDue = st.getDateDue();
             }
-            // Compute task duration (will sum subtask durations)
-            saved.computeDuration();
-            saved = taskRepository.save(saved);
-        } else {
-            // No subtasks: compute duration from task dates
-            saved.computeDuration();
-            saved = taskRepository.save(saved);
         }
 
-        return saved;
+        task.computeDuration();
+        return taskRepository.save(task);
     }
 
     @Transactional
@@ -93,7 +92,7 @@ public class TaskService {
             MAIN TASK DUE DATE:
             %s
 
-            Please revise and return ONE improved subtask JSON object that should replace or refine one of the existing subtasks.
+            Please revise and return at least THREE or more improved subtask JSON object that should replace or refine one of the existing subtasks. MAKE SURE THE SUBTASK DATES ARE LOGICALLY PLACED AND NOT OUTSIDE THE MAIN TASK DATE RANGE.
             """.formatted(task.getTitle(), task.getDescription(), task.getDateCreated(), task.getDateDue());
         if (rearrange) {
             prompt = """
@@ -108,7 +107,7 @@ public class TaskService {
                 EXISTING SUBTASKS:
                 %s
 
-                Please revise and return ONE improved subtask JSON object that should replace or refine one of the existing subtasks.
+                Please revise and return at least THREE or more improved subtask JSON object that should replace or refine one of the existing subtasks. MAKE SURE THE SUBTASK DATES ARE LOGICALLY PLACED AND NOT OUTSIDE THE MAIN TASK DATE RANGE.
                 """.formatted(task.getDescription(), task.getSubtasks().toString());
         }
         List<Task.Subtask> subtasks = smartAIService.generateSubtasks(prompt);

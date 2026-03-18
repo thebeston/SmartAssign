@@ -1,0 +1,13 @@
+.env
+# Ignore application properties that may contain secrets
+smartassign/src/main/resources/application.properties
+
+# Node modules (frontend)
+/frontend/node_modules/
+
+# Build outputs
+/target/
+
+# OS files
+Thumbs.db
+.DS_Store

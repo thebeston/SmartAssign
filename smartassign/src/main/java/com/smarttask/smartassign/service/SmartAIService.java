@@ -2,6 +2,7 @@ package com.smarttask.smartassign.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smarttask.smartassign.exception.AiServiceException;
 import com.smarttask.smartassign.model.Task;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +13,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.time.Duration;
+import java.util.ArrayList;
 
 @Service
 public class SmartAIService {
@@ -31,7 +33,7 @@ public class SmartAIService {
 
     public List<Task.Subtask> generateSubtasks(String prompt) {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("OpenAI API key not configured");
+            throw new AiServiceException("OpenAI API key not configured");
         }
 
         String formattedPrompt = prompt + "\n\n" +
@@ -46,12 +48,8 @@ public class SmartAIService {
                 .call()
                 .content();
 
-        try {
-            System.out.println("Prompt: " + prompt + "\nAI Response: " + aiResponse);
-            return objectMapper.readValue(aiResponse, new TypeReference<List<Task.Subtask>>() {});
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse AI response: " + aiResponse, e);
-        }
+        System.out.println("Prompt: " + prompt + "\nAI Response: " + aiResponse);
+        return parseSubtasksResponse(aiResponse, "subtask generation");
     }
 
     public void adjustSubtaskFrame(Task task) {
@@ -98,6 +96,7 @@ public class SmartAIService {
             // Recommend extended DueDate
         }
     }
+    
 
     public void recommendExtension(Task task, double extensionPercent, double thresholdPercent) {
         List<Task.Subtask> subtasks = task.getSubtasks();
@@ -187,7 +186,7 @@ public class SmartAIService {
 
     private List<Task.Subtask> mergeSubTasks(List<Task.Subtask> subtasks) {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("OpenAI API key not configured");
+            throw new AiServiceException("OpenAI API key not configured");
         }
 
         if (subtasks == null || subtasks.isEmpty()) {
@@ -219,14 +218,59 @@ public class SmartAIService {
                 .call()
                 .content();
 
-        try {
-            System.out.println("AI Merge Prompt:\n" + formattedPrompt);
-            System.out.println("AI Merge Response:\n" + aiResponse);
+        System.out.println("AI Merge Prompt:\n" + formattedPrompt);
+        System.out.println("AI Merge Response:\n" + aiResponse);
+        return parseSubtasksResponse(aiResponse, "subtask merge");
+    }
 
-            return objectMapper.readValue(aiResponse, new com.fasterxml.jackson.core.type.TypeReference<List<Task.Subtask>>() {});
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse AI response for merged subtasks: " + aiResponse, e);
+    private List<Task.Subtask> parseSubtasksResponse(String aiResponse, String operation) {
+        if (aiResponse == null || aiResponse.isBlank()) {
+            throw new AiServiceException("AI returned an empty response for " + operation);
         }
+
+        String normalized = normalizeAiJson(aiResponse);
+
+        try {
+            List<Task.Subtask> parsed = objectMapper.readValue(normalized, new TypeReference<List<Task.Subtask>>() {});
+            return validateSubtasks(parsed, operation);
+        } catch (Exception firstParseException) {
+            try {
+                Task.Subtask single = objectMapper.readValue(normalized, Task.Subtask.class);
+                return validateSubtasks(new ArrayList<>(List.of(single)), operation);
+            } catch (Exception secondParseException) {
+                throw new AiServiceException("Failed to parse AI response for " + operation, firstParseException);
+            }
+        }
+    }
+
+    private String normalizeAiJson(String aiResponse) {
+        String trimmed = aiResponse.trim();
+
+        if (trimmed.startsWith("```")) {
+            trimmed = trimmed.replaceAll("^```(?:json)?\\s*", "")
+                    .replaceAll("\\s*```$", "")
+                    .trim();
+        }
+
+        return trimmed;
+    }
+
+    private List<Task.Subtask> validateSubtasks(List<Task.Subtask> subtasks, String operation) {
+        if (subtasks == null || subtasks.isEmpty()) {
+            throw new AiServiceException("AI returned no subtasks for " + operation);
+        }
+
+        for (Task.Subtask subtask : subtasks) {
+            if (subtask.getTitle() == null || subtask.getTitle().isBlank()) {
+                throw new AiServiceException("AI returned a subtask without title for " + operation);
+            }
+
+            if (subtask.getDateDue() == null) {
+                throw new AiServiceException("AI returned a subtask without due date for " + operation);
+            }
+        }
+
+        return subtasks;
     }
 
     private LocalDateTime snapToAllowedHours(LocalDateTime dateTime) {

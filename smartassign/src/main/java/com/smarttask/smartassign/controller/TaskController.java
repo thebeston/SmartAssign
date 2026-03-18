@@ -107,7 +107,7 @@ public class TaskController {
     }
 
     // Delete a subtask by id
-    @DeleteMapping("/{taskId}/subtasks/{subtaskId}")
+    @DeleteMapping("/{taskId}/subtasks/id/{subtaskId}")
     public ResponseEntity<Void> deleteSubtask(@PathVariable String taskId, @PathVariable String subtaskId) {
         taskService.deleteSubTask(taskId, subtaskId);
         return ResponseEntity.noContent().build();

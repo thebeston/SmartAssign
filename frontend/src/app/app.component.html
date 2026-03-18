@@ -1,6 +1,19 @@
 <main class="container">
-  <h1>{{ title }}</h1>
-  <p class="subtitle">Simple Angular frontend for your Spring Boot Task API</p>
+  <header class="top">
+    <div class="top-left">
+      <button class="icon-btn hamburger" title="Menu">
+        <!-- hamburger -->
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="title-block">
+        <h1>{{ title }}</h1>
+        <p class="subtitle">Simple Angular frontend for your Spring Boot Task API</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <!-- reserved for future actions -->
+    </div>
+  </header>
 
   <section class="panel">
     <h2>Create Task</h2>
@@ -30,32 +43,90 @@
       <h2>Tasks</h2>
       <button type="button" (click)="loadTasks()">Refresh</button>
     </div>
+      <p *ngIf="loading">Loading tasks...</p>
 
-    @if (loading) {
-      <p>Loading tasks...</p>
-    }
+      <p *ngIf="error" class="error">{{ error }}</p>
 
-    @if (error) {
-      <p class="error">{{ error }}</p>
-    }
+      <p *ngIf="!loading && tasks.length === 0">No tasks yet.</p>
 
-    @if (!loading && tasks.length === 0) {
-      <p>No tasks yet.</p>
-    }
-
-    @if (tasks.length > 0) {
-      <ul class="task-list">
-        @for (task of tasks; track task.id ?? task.title) {
-          <li [ngClass]="{ done: task.completed }">
-            <div class="title-row">
-              <strong>{{ task.title }}</strong>
-              <span class="status">{{ task.completed ? 'Completed' : 'Pending' }}</span>
+      <ul *ngIf="tasks.length > 0" class="task-list">
+        <li *ngFor="let task of tasks" [ngClass]="{ done: task.completed }">
+          <div class="title-row">
+            <div class="left">
+              <input type="checkbox" [checked]="task.completed" (change)="toggleTaskCompleted(task)" />
+              <div (click)="toggleExpand(task)" class="clickable">
+                <strong>{{ task.title }}</strong>
+                <div class="small">Due: {{ task.dateDue | date:'medium' }}</div>
+              </div>
             </div>
-            <p>{{ task.description || 'No description' }}</p>
-            <small>Due: {{ task.dateDue | date:'medium' }}</small>
-          </li>
-        }
+            <div class="actions">
+              <button type="button" class="icon-btn" title="Show/Hide" (click)="toggleExpand(task)">
+                <!-- caret icon -->
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+
+              <button type="button" class="icon-btn" title="Generate AI Subtasks" (click)="generateAiSubtasks(task)" [disabled]="generating[task.id]">
+                <ng-container *ngIf="!generating[task.id]">
+                  <!-- robot/bolt icon as generator -->
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="4" y="8" width="16" height="12" rx="2" stroke="currentColor" stroke-width="2"/></svg>
+                </ng-container>
+                <ng-container *ngIf="generating[task.id]">
+                  <svg class="spinner" width="16" height="16" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke="#999" stroke-linecap="round" stroke-dasharray="31.415,31.415" transform="rotate(0 25 25)"></circle></svg>
+                  <span class="small">Generating...</span>
+                </ng-container>
+              </button>
+
+              <button type="button" class="icon-btn danger" title="Delete Task" (click)="deleteTask(task)">
+                <!-- trash icon -->
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <p>{{ task.description || 'No description' }}</p>
+
+          <div *ngIf="task.expanded" class="subtask-panel">
+            <h4>Subtasks</h4>
+
+            <ng-container *ngIf="task.subtasks && task.subtasks.length > 0; else noSubs">
+              <ul class="subtask-list">
+                <li *ngFor="let st of task.subtasks">
+                  <div class="subtask-row">
+                    <div class="left">
+                      <input type="checkbox" [checked]="st.completed" (change)="toggleSubtaskCompleted(task, st)" />
+                      <div class="sub-info">
+                        <strong>{{ st.title }}</strong>
+                        <div class="small">{{ st.description || '' }}</div>
+                        <div class="small">{{ st.dateDue ? (st.dateDue | date:'medium') : '' }}</div>
+                      </div>
+                    </div>
+                    <div class="sub-actions">
+                      <button class="icon-btn" title="Edit Subtask" (click)="startEditSubtask(task, st)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </button>
+                      <button class="icon-btn danger" title="Delete Subtask" (click)="deleteSubtask(task, st)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </ng-container>
+            <ng-template #noSubs>
+              <p class="small">No subtasks.</p>
+            </ng-template>
+
+            <div class="create-subtask">
+              <input [(ngModel)]="subtaskInputs[task.id].title" placeholder="Subtask title" />
+              <input type="datetime-local" [(ngModel)]="subtaskInputs[task.id].dateDue" />
+              <input [(ngModel)]="subtaskInputs[task.id].description" placeholder="Description" />
+              <button class="icon-btn" title="Add Subtask" (click)="createSubtask(task)">
+                <!-- plus icon -->
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+        </li>
       </ul>
-    }
   </section>
 </main>
