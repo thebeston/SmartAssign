@@ -59,42 +59,62 @@ public class SmartAIService {
             return;
         }
 
-        List<Task.Subtask> remaining = subtasks.stream()
-                .filter(s -> !s.isCompleted())
-                .collect(Collectors.toList());
-
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime finalDue = task.getDateDue();
-        LocalDateTime taskStart = task.getDateCreated();
-        double totalWork = task.getDuration();
+        
+        // Use working minutes instead of raw minutes
+        long availableMinutes = getWorkingMinutesBetween(now, finalDue);
+        if (availableMinutes <= 0) {
+            System.out.println("No working time remaining until task due date");
+            return;
+        }
 
-        long availableMinutes = Duration.between(now, finalDue).toMinutes();
+        // Get incomplete subtasks (work directly with the original list)
+        List<Task.Subtask> incomplete = new java.util.ArrayList<>();
+        for (Task.Subtask s : subtasks) {
+            if (!s.isCompleted()) {
+                incomplete.add(s);
+            }
+        }
 
-        double scale = (double) availableMinutes / totalWork;
+        if (incomplete.isEmpty()) {
+            System.out.println("No incomplete subtasks to adjust for task: " + task.getId());
+            return;
+        }
 
-        double cumulative = 0;
-        LocalDateTime previousDue = now;
-        for (Task.Subtask subtask : remaining) {
-            subtask.setDateStart(previousDue);
-            cumulative += subtask.getDuration();
-            long minutesToAdd = (long) (cumulative * scale);
-            LocalDateTime newDue = now.plusMinutes(minutesToAdd);
+        System.out.println("Available working minutes until task due: " + availableMinutes);
+        System.out.println("Number of incomplete subtasks: " + incomplete.size());
+
+        // Distribute time evenly among incomplete subtasks from NOW to task due date
+        long minutesPerSubtask = availableMinutes / incomplete.size();
+        LocalDateTime currentStart = snapToAllowedHours(now);
+        
+        for (int i = 0; i < incomplete.size(); i++) {
+            Task.Subtask subtask = incomplete.get(i);
+            subtask.setDateStart(currentStart);
+            
+            // Last subtask gets the exact final due date to avoid rounding issues
+            LocalDateTime newDue;
+            if (i == incomplete.size() - 1) {
+                newDue = finalDue;
+            } else {
+                newDue = addMinutesWithinAllowedHours(currentStart, minutesPerSubtask);
+            }
+            
             subtask.setDateDue(newDue);
-            previousDue = newDue;
+            System.out.println("Set subtask '" + subtask.getTitle() + "' start: " + currentStart + ", due: " + newDue);
+            currentStart = newDue;
         }
-
-        long originalTimeFrame = Duration.between(taskStart, task.getDateDue()).toMinutes();
-        long adjustedTimeFrame = Duration.between(now, task.getDateDue()).toMinutes();
-        double compressionRatio = (double) adjustedTimeFrame / originalTimeFrame;
-
-        if (compressionRatio < 0.5) {
-            task.setSubtasks(mergeSubTasks(task.getSubtasks()));
-            taskStart = now;
-        }
-
-        if (Duration.between(task.getDateCreated(), task.getDateDue()).toMinutes() / adjustedTimeFrame < 0.3) {
-            // Recommend extended DueDate
-        }
+        
+        // Sort all subtasks by due date
+        subtasks.sort((a, b) -> {
+            if (a.getDateDue() == null && b.getDateDue() == null) return 0;
+            if (a.getDateDue() == null) return 1;
+            if (b.getDateDue() == null) return -1;
+            return a.getDateDue().compareTo(b.getDateDue());
+        });
+        
+        System.out.println("Adjusted and sorted " + incomplete.size() + " subtasks for task: " + task.getId());
     }
     
 
@@ -293,46 +313,42 @@ public class SmartAIService {
             return 0;
         }
 
-        long totalMinutes = 0;
-        LocalDateTime current = snapToAllowedHours(start);
-
-        while (current.isBefore(end)) {
-            LocalDateTime endOfDay = current.toLocalDate().atTime(DAY_END);
-
-            if (endOfDay.isAfter(end)) {
-                totalMinutes += Duration.between(current, end).toMinutes();
-                break;
-            } else {
-                totalMinutes += Duration.between(current, endOfDay).toMinutes();
-                current = current.toLocalDate().plusDays(1).atTime(DAY_START);
-            }
+        long minutesPerDay = Duration.between(DAY_START, DAY_END).toMinutes();
+        LocalDateTime snappedStart = snapToAllowedHours(start);
+        LocalDateTime snappedEnd = snapToAllowedHours(end);
+        
+        long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(
+            snappedStart.toLocalDate(), snappedEnd.toLocalDate());
+        
+        if (daysBetween == 0) {
+            return Math.max(0, Duration.between(snappedStart, snappedEnd).toMinutes());
         }
-        return totalMinutes;
+        
+        long minutesFirstDay = Duration.between(snappedStart.toLocalTime(), DAY_END).toMinutes();
+        long minutesLastDay = Duration.between(DAY_START, snappedEnd.toLocalTime()).toMinutes();
+        long fullDaysMinutes = Math.max(0, daysBetween - 1) * minutesPerDay;
+        
+        return Math.max(0, minutesFirstDay) + fullDaysMinutes + Math.max(0, minutesLastDay);
     }
 
     private LocalDateTime addMinutesWithinAllowedHours(LocalDateTime start, long minutesToAdd) {
         LocalDateTime result = snapToAllowedHours(start);
-        long remainingMinutes = minutesToAdd;
-
-        while (remainingMinutes > 0) {
-            LocalDateTime endOfDay = result.toLocalDate().atTime(DAY_END);
-            long minutesUntilEndOfDay = Duration.between(result, endOfDay).toMinutes();
-
-            if (minutesUntilEndOfDay <= 0) {
-                result = result.toLocalDate().plusDays(1).atTime(DAY_START);
-                continue;
-            }
-
-            if (remainingMinutes <= minutesUntilEndOfDay) {
-                result = result.plusMinutes(remainingMinutes);
-                remainingMinutes = 0;
-            } else {
-                remainingMinutes -= minutesUntilEndOfDay;
-                result = result.toLocalDate().plusDays(1).atTime(DAY_START);
-            }
+        long minutesPerDay = Duration.between(DAY_START, DAY_END).toMinutes();
+        
+        long minutesLeftToday = Duration.between(result.toLocalTime(), DAY_END).toMinutes();
+        
+        if (minutesToAdd <= minutesLeftToday) {
+            return result.plusMinutes(minutesToAdd);
         }
-
-        return snapToAllowedHours(result);
+        
+        long remaining = minutesToAdd - minutesLeftToday;
+        long fullDays = remaining / minutesPerDay;
+        long remainderMinutes = remaining % minutesPerDay;
+        
+        return result.toLocalDate()
+                     .plusDays(1 + fullDays)
+                     .atTime(DAY_START)
+                     .plusMinutes(remainderMinutes);
     }
 
 }
