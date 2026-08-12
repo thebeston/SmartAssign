@@ -54,13 +54,18 @@ Frontend defaults to `http://localhost:4200` and proxies API requests to backend
 - `GET /tasks/{id}`
 - `POST /tasks`
 - `PUT /tasks/{id}`
-- `DELETE /tasks/{id}`
+- `DELETE /tasks/{id}` (moves a main task to Recently Deleted for 14 days)
+- `GET /tasks/deleted`
+- `PUT /tasks/{id}/restore`
+- `DELETE /tasks/{id}/permanent`
 - `POST /tasks/{id}/subtasks`
 - `PUT /tasks/{taskId}/subtasks/{subtaskId}`
 - `DELETE /tasks/{taskId}/subtasks/{subtaskId}`
 - `PUT /tasks/{id}/subtasks/generate?rearrange=true|false`
 - `PUT /tasks/{id}/subtasks/adjustFrame`
 - `PUT /tasks/{id}/recommendExtension`
+
+Deleted main tasks stay recoverable for 14 days, then are removed automatically.
 
 ## Notes
 

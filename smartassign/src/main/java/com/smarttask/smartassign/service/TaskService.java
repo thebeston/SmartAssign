@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Comparator;
 
 @Service
 public class TaskService {
@@ -22,8 +23,18 @@ public class TaskService {
         this.smartAIService = smartAIService;
     }
 
+    public static final int DELETED_RETENTION_DAYS = 14;
+
     public List<Task> getAllTasks() {
-        return taskRepository.findAll();
+        return taskRepository.findByDeletedAtIsNull();
+    }
+
+    public List<Task> getDeletedTasks() {
+        purgeExpiredDeletedTasks();
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(DELETED_RETENTION_DAYS);
+        List<Task> deleted = taskRepository.findByDeletedAtGreaterThanEqualOrderByDeletedAtDesc(cutoff);
+        deleted.sort(Comparator.comparing(Task::getDeletedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+        return deleted;
     }
 
     public Task getTaskById(String id) {
@@ -92,7 +103,7 @@ public class TaskService {
             MAIN TASK DUE DATE:
             %s
 
-            Please revise and return at least THREE or more improved subtask JSON object that should replace or refine one of the existing subtasks. MAKE SURE THE SUBTASK DATES ARE LOGICALLY PLACED AND NOT OUTSIDE THE MAIN TASK DATE RANGE.
+            Please revise and return at least EIGHT (8) or more improved subtask JSON objects that should replace or refine one of the existing subtasks. MAKE SURE THE SUBTASK DATES ARE LOGICALLY PLACED AND NOT OUTSIDE THE MAIN TASK DATE RANGE.
             """.formatted(task.getTitle(), task.getDescription(), task.getDateCreated(), task.getDateDue());
         if (rearrange) {
             prompt = """
@@ -129,16 +140,15 @@ public class TaskService {
     public Task adjustSubtaskFrame(String taskID) {
         Task task = getTaskById(taskID);
 
-        if (task.getSubtasks() != null && !task.getSubtasks().isEmpty() &&
-            LocalDateTime.now().isAfter(task.getSubtasks().get(0).getDateDue())) {
-
+        if (task != null && task.getSubtasks() != null && !task.getSubtasks().isEmpty()) {
+            System.out.println("Calling adjustSubtaskFrame for task: " + taskID);
             smartAIService.adjustSubtaskFrame(task);
-            
             computeAllDurations(task);
-            
             return taskRepository.save(task);
         }
-        return null;
+        
+        System.out.println("No subtasks to adjust for task: " + taskID);
+        return task;
     }
 
     public Task extendTaskDueDate(String taskID) {
@@ -165,6 +175,13 @@ public class TaskService {
         updatedTask.setId(id);
         ObjectId parentId = new ObjectId(id);
         Task existingTask = getTaskById(id);
+
+        if (updatedTask.getDateCreated() == null) {
+            updatedTask.setDateCreated(existingTask.getDateCreated());
+        }
+        if (updatedTask.getDeletedAt() == null) {
+            updatedTask.setDeletedAt(existingTask.getDeletedAt());
+        }
 
         if (updatedTask.getSubtasks() != null) {
             LocalDateTime previousDue = null;
@@ -193,7 +210,34 @@ public class TaskService {
 
     @Transactional
     public void deleteTask(String id) {
+        Task task = getTaskById(id);
+        if (task.getDeletedAt() == null) {
+            task.setDeletedAt(LocalDateTime.now());
+            taskRepository.save(task);
+        }
+    }
+
+    @Transactional
+    public Task restoreTask(String id) {
+        Task task = getTaskById(id);
+        task.setDeletedAt(null);
+        return taskRepository.save(task);
+    }
+
+    @Transactional
+    public void permanentlyDeleteTask(String id) {
         taskRepository.deleteById(new ObjectId(id));
+    }
+
+    @Transactional
+    public int purgeExpiredDeletedTasks() {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(DELETED_RETENTION_DAYS);
+        List<Task> expired = taskRepository.findByDeletedAtLessThan(cutoff);
+        if (expired.isEmpty()) {
+            return 0;
+        }
+        taskRepository.deleteAll(expired);
+        return expired.size();
     }
 
     @Transactional

@@ -40,6 +40,11 @@ public class TaskController {
         return taskService.getAllTasks();
     }
 
+    @GetMapping("/deleted")
+    public List<Task> getDeletedTasks() {
+        return taskService.getDeletedTasks();
+    }
+
     @GetMapping("/{id}")
     public Task getTaskById(@PathVariable String id) {
         return taskService.getTaskById(id);
@@ -58,9 +63,24 @@ public class TaskController {
             task.setSubtasks(new ArrayList<>());
         }
         task.getSubtasks().add(subtask);
+        
+        // Sort subtasks by due date after adding
+        task.getSubtasks().sort((a, b) -> {
+            if (a.getDateDue() == null && b.getDateDue() == null) return 0;
+            if (a.getDateDue() == null) return 1;
+            if (b.getDateDue() == null) return -1;
+            return a.getDateDue().compareTo(b.getDateDue());
+        });
+        
         Task saved = taskService.updateTask(id, task);
-        // return the last subtask (service populates id and parentId)
+        // Find the created subtask by matching title (since it's newly added)
         if (saved.getSubtasks() != null && !saved.getSubtasks().isEmpty()) {
+            for (Task.Subtask st : saved.getSubtasks()) {
+                if (subtask.getTitle().equals(st.getTitle())) {
+                    return ResponseEntity.status(HttpStatus.CREATED).body(st);
+                }
+            }
+            // Fallback to last subtask
             Task.Subtask created = saved.getSubtasks().get(saved.getSubtasks().size() - 1);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         }
@@ -84,6 +104,14 @@ public class TaskController {
                 }
             }
             if (found) {
+                // Sort subtasks by due date after update
+                task.getSubtasks().sort((a, b) -> {
+                    if (a.getDateDue() == null && b.getDateDue() == null) return 0;
+                    if (a.getDateDue() == null) return 1;
+                    if (b.getDateDue() == null) return -1;
+                    return a.getDateDue().compareTo(b.getDateDue());
+                });
+                
                 Task saved = taskService.updateTask(taskId, task);
                 for (Task.Subtask st : saved.getSubtasks()) {
                     if (subtaskId.equals(st.getId())) {
@@ -104,6 +132,17 @@ public class TaskController {
     @DeleteMapping("/{id}")
     public void deleteTask(@PathVariable String id) {
         taskService.deleteTask(id);
+    }
+
+    @PutMapping("/{id}/restore")
+    public Task restoreTask(@PathVariable String id) {
+        return taskService.restoreTask(id);
+    }
+
+    @DeleteMapping("/{id}/permanent")
+    public ResponseEntity<Void> permanentlyDeleteTask(@PathVariable String id) {
+        taskService.permanentlyDeleteTask(id);
+        return ResponseEntity.noContent().build();
     }
 
     // Delete a subtask by id

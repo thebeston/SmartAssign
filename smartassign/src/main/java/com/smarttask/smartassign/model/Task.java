@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.bson.types.ObjectId;
-import org.springframework.cglib.core.Local;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -24,6 +23,9 @@ public class Task {
     private LocalDateTime dateDue;
     private String description;
     private boolean completed = false;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime deletedAt;
     
     // Duration in minutes: sum of subtask durations if subtasks exist, else dateCreated -> dateDue
     private Long duration;
@@ -68,6 +70,11 @@ public class Task {
 
     public boolean isCompleted() { return completed; }
     public void setCompleted(boolean completed) { this.completed = completed; }
+
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+
+    public boolean isDeleted() { return deletedAt != null; }
 
     public List<Subtask> getSubtasks() {
         if (subtasks == null) subtasks = new ArrayList<>();
