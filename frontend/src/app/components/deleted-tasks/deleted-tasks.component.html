@@ -1,0 +1,67 @@
+<div class="page-intro">
+  <div>
+    <h2>Recently deleted</h2>
+    <p>Main tasks stay here for {{ retentionDays }} days. Restore them, or delete them forever.</p>
+  </div>
+</div>
+
+<div class="toolbar" *ngIf="tasks.length > 0">
+  <div class="search-field">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input type="search" [ngModel]="searchQuery" (ngModelChange)="onSearch($event)" name="deletedSearch" placeholder="Search deleted tasks..." />
+  </div>
+</div>
+
+<div class="loading-state" *ngIf="loading">
+  <div class="spinner"></div>
+  <p>Loading deleted tasks...</p>
+</div>
+
+<div class="empty-state" *ngIf="!loading && tasks.length === 0">
+  <div class="empty-icon">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+  <h3>Nothing in Recently Deleted</h3>
+  <p>Deleted tasks will appear here for two weeks before they are removed for good.</p>
+</div>
+
+<div class="empty-state compact" *ngIf="!loading && tasks.length > 0 && filteredTasks.length === 0">
+  <h3>No matching deleted tasks</h3>
+  <p>Try a different search.</p>
+</div>
+
+<div class="deleted-list" *ngIf="!loading && filteredTasks.length > 0">
+  <article class="deleted-card" *ngFor="let task of filteredTasks; trackBy: trackByTaskId">
+    <div class="deleted-main">
+      <div class="deleted-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="deleted-info">
+        <h3>{{ task.title }}</h3>
+        <p *ngIf="task.description">{{ task.description }}</p>
+        <div class="deleted-meta">
+          <span>{{ getDeletedAgoLabel(task) }}</span>
+          <span *ngIf="task.dateDue">Was due {{ task.dateDue | date:'mediumDate' }}</span>
+          <span *ngIf="task.subtasks?.length">{{ task.subtasks?.length }} subtasks</span>
+        </div>
+      </div>
+    </div>
+    <div class="deleted-side">
+      <div class="retention">
+        <div class="retention-label">
+          <span>{{ getRetentionLabel(task) }}</span>
+          <span class="muted">of {{ retentionDays }} days</span>
+        </div>
+        <div class="retention-bar">
+          <div class="retention-fill" [style.width.%]="getRetentionPercent(task)"></div>
+        </div>
+      </div>
+      <div class="deleted-actions">
+        <button class="btn btn-primary btn-sm" type="button" (click)="restore(task)" [disabled]="restoring[task.id]">
+          {{ restoring[task.id] ? 'Restoring...' : 'Restore' }}
+        </button>
+        <button class="btn btn-ghost btn-sm danger-text" type="button" (click)="permanentlyDelete(task)">Delete forever</button>
+      </div>
+    </div>
+  </article>
+</div>

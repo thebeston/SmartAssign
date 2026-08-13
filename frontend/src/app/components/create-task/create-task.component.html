@@ -1,0 +1,28 @@
+<div class="modal-overlay" *ngIf="open" (click)="close()">
+  <div class="modal-content create-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Create a new task</h3>
+      <button class="modal-close" type="button" (click)="close()" aria-label="Close">&times;</button>
+    </div>
+    <form (ngSubmit)="submit()" class="create-form">
+      <div class="form-group">
+        <label for="new-title">Title</label>
+        <input id="new-title" type="text" [(ngModel)]="form.title" name="title" placeholder="What needs to get done?" required />
+      </div>
+      <div class="form-group">
+        <label for="new-due">Due date</label>
+        <input id="new-due" type="datetime-local" [(ngModel)]="form.dateDue" name="dateDue" required />
+      </div>
+      <div class="form-group">
+        <label for="new-desc">Description</label>
+        <textarea id="new-desc" [(ngModel)]="form.description" name="description" rows="4" placeholder="Add enough context for a good AI plan..."></textarea>
+      </div>
+      <div class="modal-footer flush">
+        <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="submitting">
+          {{ submitting ? 'Creating...' : 'Create Task' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

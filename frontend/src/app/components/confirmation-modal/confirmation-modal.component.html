@@ -1,0 +1,15 @@
+<div class="modal-overlay" *ngIf="open" (click)="cancel()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ title }}</h3>
+      <button class="modal-close" type="button" (click)="cancel()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p>{{ message }}</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" type="button" (click)="cancel()">Cancel</button>
+      <button class="btn btn-danger" type="button" (click)="confirm()">{{ confirmLabel }}</button>
+    </div>
+  </div>
+</div>

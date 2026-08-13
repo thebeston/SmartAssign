@@ -1,0 +1,49 @@
+<div class="subtasks-section">
+  <h4>Subtasks <span class="count" *ngIf="task.subtasks">({{ task.subtasks.length }})</span></h4>
+
+  <div class="subtask-list" *ngIf="task.subtasks && task.subtasks.length > 0">
+    <div class="subtask-item" *ngFor="let st of task.subtasks" [class.completed]="st.completed" [class.overdue]="isOverdue(st)">
+      <div class="subtask-main">
+        <input type="checkbox" [checked]="st.completed" (change)="toggleCompleted(st)" />
+        <div class="subtask-info" *ngIf="!editInputs[st.id!]">
+          <span class="subtask-title">{{ st.title }}</span>
+          <span class="subtask-desc" *ngIf="st.description">{{ st.description }}</span>
+          <div class="subtask-dates">
+            <span *ngIf="st.dateStart">Start: {{ st.dateStart | date:'short' }}</span>
+            <span *ngIf="st.dateDue">Due: {{ st.dateDue | date:'short' }}</span>
+          </div>
+        </div>
+        <div class="subtask-edit-form" *ngIf="editInputs[st.id!]">
+          <input type="text" [(ngModel)]="editInputs[st.id!].title" placeholder="Title" />
+          <input type="text" [(ngModel)]="editInputs[st.id!].description" placeholder="Description" />
+          <input type="datetime-local" [(ngModel)]="editInputs[st.id!].dateDue" />
+          <div class="subtask-edit-actions">
+            <button class="btn btn-secondary btn-xs" type="button" (click)="cancelEdit(st)">Cancel</button>
+            <button class="btn btn-primary btn-xs" type="button" (click)="save(st)">Save</button>
+          </div>
+        </div>
+      </div>
+      <div class="subtask-actions" *ngIf="!editInputs[st.id!]">
+        <button class="btn-icon-sm" type="button" (click)="startEdit(st)" title="Edit">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button class="btn-icon-sm danger" type="button" (click)="remove(st)" title="Delete">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <p class="no-subtasks" *ngIf="!task.subtasks || task.subtasks.length === 0">No subtasks yet. Generate a plan or add one below.</p>
+
+  <div class="add-subtask-form">
+    <div class="subtask-form-row">
+      <input type="text" [(ngModel)]="newSubtask.title" name="subTitle" placeholder="Subtask title..." class="input-title" />
+      <input type="datetime-local" [(ngModel)]="newSubtask.dateDue" name="subDue" class="input-date" />
+    </div>
+    <div class="subtask-form-row">
+      <input type="text" [(ngModel)]="newSubtask.description" name="subDesc" placeholder="Description (optional)" class="input-desc" />
+      <button class="btn btn-primary btn-sm" type="button" (click)="create()">Add</button>
+    </div>
+  </div>
+</div>

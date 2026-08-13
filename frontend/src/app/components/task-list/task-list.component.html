@@ -1,0 +1,95 @@
+<div class="stats-bar">
+  <button class="stat" type="button" [class.active]="taskFilter === 'all'" (click)="setFilter('all')">
+    <span class="stat-value">{{ tasks.length }}</span>
+    <span class="stat-label">All</span>
+  </button>
+  <button class="stat" type="button" [class.active]="taskFilter === 'active'" (click)="setFilter('active')">
+    <span class="stat-value">{{ activeCount }}</span>
+    <span class="stat-label">Active</span>
+  </button>
+  <button class="stat" type="button" [class.active]="taskFilter === 'completed'" (click)="setFilter('completed')">
+    <span class="stat-value">{{ completedCount }}</span>
+    <span class="stat-label">Done</span>
+  </button>
+  <button class="stat" type="button" [class.active]="taskFilter === 'overdue'" (click)="setFilter('overdue')">
+    <span class="stat-value overdue-value">{{ overdueCount }}</span>
+    <span class="stat-label">Overdue</span>
+  </button>
+  <button class="btn btn-primary" type="button" (click)="createRequested.emit()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    New Task
+  </button>
+</div>
+
+<div class="toolbar" *ngIf="tasks.length > 0">
+  <div class="search-field">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input type="search" [ngModel]="searchQuery" (ngModelChange)="onSearch($event)" name="taskSearch" placeholder="Search tasks..." />
+  </div>
+  <div class="filter-chips">
+    <button class="chip" type="button" [class.active]="taskFilter === 'all'" (click)="setFilter('all')">All</button>
+    <button class="chip" type="button" [class.active]="taskFilter === 'active'" (click)="setFilter('active')">Active</button>
+    <button class="chip" type="button" [class.active]="taskFilter === 'completed'" (click)="setFilter('completed')">Completed</button>
+    <button class="chip" type="button" [class.active]="taskFilter === 'overdue'" (click)="setFilter('overdue')">Overdue</button>
+  </div>
+</div>
+
+<div class="loading-state" *ngIf="loading">
+  <div class="spinner"></div>
+  <p>Loading your tasks...</p>
+</div>
+
+<div class="empty-state" *ngIf="!loading && tasks.length === 0">
+  <div class="empty-icon">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+    </svg>
+  </div>
+  <h3>No tasks yet</h3>
+  <p>Create a task and let AI break it into a clear plan with due dates.</p>
+  <button class="btn btn-primary" type="button" (click)="createRequested.emit()">Create your first task</button>
+</div>
+
+<div class="empty-state compact" *ngIf="!loading && tasks.length > 0 && filteredTasks.length === 0">
+  <h3>No matching tasks</h3>
+  <p>Try a different search or filter.</p>
+  <button class="btn btn-secondary" type="button" (click)="clearFilters()">Clear filters</button>
+</div>
+
+<section class="task-section" *ngIf="!loading && activeFilteredTasks.length > 0 && taskFilter !== 'completed'">
+  <div class="section-heading" *ngIf="taskFilter === 'all' && showCompletedBlock">
+    <h2>Active</h2>
+    <span>{{ activeFilteredTasks.length }}</span>
+  </div>
+  <div class="task-grid">
+    <app-task-card
+      *ngFor="let task of activeFilteredTasks; trackBy: trackByTaskId"
+      [task]="task"
+      (taskUpdated)="taskUpdated.emit($event)"
+      (taskRemoved)="taskRemoved.emit($event)"
+      (reloadRequested)="reloadRequested.emit()">
+    </app-task-card>
+  </div>
+</section>
+
+<section class="task-section completed-section" *ngIf="!loading && showCompletedBlock">
+  <button class="section-heading toggle" type="button" (click)="toggleCompletedSection()" *ngIf="taskFilter === 'all'">
+    <h2>Completed</h2>
+    <span>{{ completedFilteredTasks.length }}</span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" [class.rotated]="showCompletedSection"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="section-heading" *ngIf="taskFilter === 'completed'">
+    <h2>Completed</h2>
+    <span>{{ completedFilteredTasks.length }}</span>
+  </div>
+  <div class="task-grid" *ngIf="taskFilter === 'completed' || showCompletedSection || activeFilteredTasks.length === 0">
+    <app-task-card
+      *ngFor="let task of completedFilteredTasks; trackBy: trackByTaskId"
+      [task]="task"
+      (taskUpdated)="taskUpdated.emit($event)"
+      (taskRemoved)="taskRemoved.emit($event)"
+      (reloadRequested)="reloadRequested.emit()">
+    </app-task-card>
+  </div>
+</section>

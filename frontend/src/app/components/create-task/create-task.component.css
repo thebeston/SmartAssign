@@ -1,0 +1,15 @@
+:host {
+  display: contents;
+}
+
+.create-modal {
+  max-width: 520px;
+}
+
+.create-form {
+  padding: 8px 24px 0;
+}
+
+.modal-footer.flush {
+  margin: 8px -24px 0;
+}

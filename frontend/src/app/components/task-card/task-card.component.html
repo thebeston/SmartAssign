@@ -1,0 +1,100 @@
+<article class="task-card"
+         [class.completed]="task.completed"
+         [class.overdue]="getTaskStatus(task) === 'overdue'"
+         [class.warning]="getTaskStatus(task) === 'warning'">
+  <div class="task-header">
+    <div class="task-checkbox">
+      <input type="checkbox" [id]="'task-' + task.id" [checked]="task.completed" (change)="toggleCompleted()" />
+      <label [for]="'task-' + task.id"></label>
+    </div>
+    <div class="task-info" (click)="toggleExpand()">
+      <h3 class="task-title"
+          [class.warning-text]="getTaskStatus(task) === 'warning'"
+          [class.overdue-text]="getTaskStatus(task) === 'overdue'">{{ task.title }}</h3>
+      <div class="task-meta">
+        <span class="due-badge"
+              [class.overdue]="getTaskStatus(task) === 'overdue'"
+              [class.warning]="getTaskStatus(task) === 'warning'">
+          {{ task.dateDue | daysRemaining }}
+        </span>
+        <span class="due-date" *ngIf="task.dateDue">{{ task.dateDue | date:'MMM d, h:mm a' }}</span>
+      </div>
+    </div>
+    <div class="task-actions">
+      <button class="btn-icon" type="button" title="Edit" (click)="startEdit()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="btn-icon expand-btn" type="button" [class.expanded]="task.expanded" (click)="toggleExpand()" title="Expand">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="btn-icon danger" type="button" title="Delete" (click)="deleteTask()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="progress-container">
+    <div class="progress-bar">
+      <div class="progress-fill" [style.width.%]="getProgressPercent(task)"></div>
+    </div>
+    <span class="progress-text">{{ getProgressPercent(task) }}%</span>
+  </div>
+
+  <p class="task-description" *ngIf="task.description">{{ task.description }}</p>
+
+  <div class="edit-form" *ngIf="editing">
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" [(ngModel)]="editModel.title" name="editTitle" />
+    </div>
+    <div class="form-group">
+      <label>Due Date</label>
+      <input type="datetime-local" [(ngModel)]="editModel.dateDue" name="editDue" />
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea [(ngModel)]="editModel.description" name="editDesc" rows="2"></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary btn-sm" type="button" (click)="cancelEdit()">Cancel</button>
+      <button class="btn btn-primary btn-sm" type="button" (click)="saveEdit()">Save</button>
+    </div>
+  </div>
+
+  <div class="task-expanded" *ngIf="task.expanded">
+    <div class="ai-actions">
+      <button class="btn btn-ai" type="button" (click)="generateAiSubtasks()" [disabled]="generating">
+        <svg *ngIf="!generating" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="spinner-sm" *ngIf="generating"></span>
+        {{ generating ? 'Generating...' : 'Generate Subtasks' }}
+      </button>
+      <button class="btn btn-ai" type="button" (click)="rearrangeSubtasks()" [disabled]="rearranging" *ngIf="task.subtasks && task.subtasks.length > 0">
+        <svg *ngIf="!rearranging" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="spinner-sm" *ngIf="rearranging"></span>
+        {{ rearranging ? 'Reorganizing...' : 'AI Reorganize' }}
+      </button>
+      <button class="btn btn-ai btn-warning" type="button" (click)="adjustTimeframe()" [disabled]="adjustingFrame" *ngIf="canAdjustTimeframe(task)">
+        <svg *ngIf="!adjustingFrame" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="spinner-sm" *ngIf="adjustingFrame"></span>
+        {{ adjustingFrame ? 'Adjusting...' : 'Adjust Timeframe' }}
+      </button>
+      <button class="btn btn-ai"
+              type="button"
+              [class.btn-warning]="needsExtensionRecommendation(task)"
+              [class.btn-danger]="isOverdue(task.dateDue)"
+              (click)="recommendExtension()"
+              [disabled]="recommendingExtension"
+              *ngIf="canRecommendExtension(task)">
+        <svg *ngIf="!recommendingExtension" width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="spinner-sm" *ngIf="recommendingExtension"></span>
+        {{ recommendingExtension ? 'Extending...' : 'Extend Deadline' }}
+      </button>
+    </div>
+
+    <app-subtask-list
+      [task]="task"
+      (changed)="onSubtasksChanged()"
+      (taskUpdated)="onLocalTaskUpdated($event)">
+    </app-subtask-list>
+  </div>
+</article>

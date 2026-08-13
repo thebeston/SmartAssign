@@ -14,12 +14,12 @@
       </div>
     </div>
     <nav class="header-nav" aria-label="Main">
-      <button [class.active]="activeTab === 'tasks'" (click)="setActiveTab('tasks')">Tasks</button>
-      <button [class.active]="activeTab === 'deleted'" (click)="setActiveTab('deleted')">
+      <button type="button" [class.active]="activeTab === 'tasks'" (click)="setActiveTab('tasks')">Tasks</button>
+      <button type="button" [class.active]="activeTab === 'deleted'" (click)="setActiveTab('deleted')">
         Deleted
         <span class="nav-badge" *ngIf="deletedTasks.length > 0">{{ deletedTasks.length }}</span>
       </button>
-      <button [class.active]="activeTab === 'demo'" (click)="setActiveTab('demo')">How it works</button>
+      <button type="button" [class.active]="activeTab === 'demo'" (click)="setActiveTab('demo')">How it works</button>
     </nav>
   </header>
 
@@ -33,166 +33,30 @@
   </div>
 
   <div class="content" *ngIf="activeTab === 'tasks'">
-    <div class="stats-bar">
-      <button class="stat" [class.active]="taskFilter === 'all'" (click)="setTaskFilter('all')">
-        <span class="stat-value">{{ tasks.length }}</span>
-        <span class="stat-label">All</span>
-      </button>
-      <button class="stat" [class.active]="taskFilter === 'active'" (click)="setTaskFilter('active')">
-        <span class="stat-value">{{ getActiveCount() }}</span>
-        <span class="stat-label">Active</span>
-      </button>
-      <button class="stat" [class.active]="taskFilter === 'completed'" (click)="setTaskFilter('completed')">
-        <span class="stat-value">{{ getCompletedCount() }}</span>
-        <span class="stat-label">Done</span>
-      </button>
-      <button class="stat" [class.active]="taskFilter === 'overdue'" (click)="setTaskFilter('overdue')">
-        <span class="stat-value overdue-value">{{ getOverdueCount() }}</span>
-        <span class="stat-label">Overdue</span>
-      </button>
-      <button class="btn btn-primary" (click)="toggleCreateForm()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        New Task
-      </button>
-    </div>
-
-    <div class="toolbar" *ngIf="tasks.length > 0">
-      <div class="search-field">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        <input type="search" [(ngModel)]="searchQuery" name="taskSearch" placeholder="Search tasks..." />
-      </div>
-      <div class="filter-chips">
-        <button class="chip" [class.active]="taskFilter === 'all'" (click)="setTaskFilter('all')">All</button>
-        <button class="chip" [class.active]="taskFilter === 'active'" (click)="setTaskFilter('active')">Active</button>
-        <button class="chip" [class.active]="taskFilter === 'completed'" (click)="setTaskFilter('completed')">Completed</button>
-        <button class="chip" [class.active]="taskFilter === 'overdue'" (click)="setTaskFilter('overdue')">Overdue</button>
-      </div>
-    </div>
-
-    <div class="loading-state" *ngIf="loading">
-      <div class="spinner"></div>
-      <p>Loading your tasks...</p>
-    </div>
-
-    <div class="empty-state" *ngIf="!loading && tasks.length === 0">
-      <div class="empty-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="1.5"/>
-          <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
-        </svg>
-      </div>
-      <h3>No tasks yet</h3>
-      <p>Create a task and let AI break it into a clear plan with due dates.</p>
-      <button class="btn btn-primary" (click)="openCreateForm()">Create your first task</button>
-    </div>
-
-    <div class="empty-state compact" *ngIf="!loading && tasks.length > 0 && filteredTasks.length === 0">
-      <h3>No matching tasks</h3>
-      <p>Try a different search or filter.</p>
-      <button class="btn btn-secondary" (click)="searchQuery = ''; setTaskFilter('all')">Clear filters</button>
-    </div>
-
-    <section class="task-section" *ngIf="!loading && activeFilteredTasks.length > 0 && taskFilter !== 'completed'">
-      <div class="section-heading" *ngIf="taskFilter === 'all' && showCompletedBlock">
-        <h2>Active</h2>
-        <span>{{ activeFilteredTasks.length }}</span>
-      </div>
-      <div class="task-grid">
-        <article class="task-card" *ngFor="let task of activeFilteredTasks; trackBy: trackByTaskId"
-             [class.completed]="task.completed"
-             [class.overdue]="getTaskStatus(task) === 'overdue'"
-             [class.warning]="getTaskStatus(task) === 'warning'">
-          <ng-container *ngTemplateOutlet="taskCard; context: { task: task }"></ng-container>
-        </article>
-      </div>
-    </section>
-
-    <section class="task-section completed-section" *ngIf="!loading && showCompletedBlock">
-      <button class="section-heading toggle" type="button" (click)="showCompletedSection = !showCompletedSection" *ngIf="taskFilter === 'all'">
-        <h2>Completed</h2>
-        <span>{{ completedFilteredTasks.length }}</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" [class.rotated]="showCompletedSection"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <div class="section-heading" *ngIf="taskFilter === 'completed'">
-        <h2>Completed</h2>
-        <span>{{ completedFilteredTasks.length }}</span>
-      </div>
-      <div class="task-grid" *ngIf="taskFilter === 'completed' || showCompletedSection || activeFilteredTasks.length === 0">
-        <article class="task-card completed" *ngFor="let task of completedFilteredTasks; trackBy: trackByTaskId">
-          <ng-container *ngTemplateOutlet="taskCard; context: { task: task }"></ng-container>
-        </article>
-      </div>
-    </section>
+    <app-task-list
+      [tasks]="tasks"
+      [loading]="loading"
+      [taskFilter]="taskFilter"
+      [searchQuery]="searchQuery"
+      [showCompletedSection]="showCompletedSection"
+      (taskFilterChange)="taskFilter = $event"
+      (searchQueryChange)="searchQuery = $event"
+      (showCompletedSectionChange)="showCompletedSection = $event"
+      (createRequested)="openCreateForm()"
+      (taskUpdated)="replaceTask($event)"
+      (taskRemoved)="onTaskRemoved($event)"
+      (reloadRequested)="loadTasks()">
+    </app-task-list>
   </div>
 
   <div class="content" *ngIf="activeTab === 'deleted'">
-    <div class="page-intro">
-      <div>
-        <h2>Recently deleted</h2>
-        <p>Main tasks stay here for {{ retentionDays }} days. Restore them, or delete them forever.</p>
-      </div>
-    </div>
-
-    <div class="toolbar" *ngIf="deletedTasks.length > 0">
-      <div class="search-field">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        <input type="search" [(ngModel)]="deletedSearchQuery" name="deletedSearch" placeholder="Search deleted tasks..." />
-      </div>
-    </div>
-
-    <div class="loading-state" *ngIf="deletedLoading">
-      <div class="spinner"></div>
-      <p>Loading deleted tasks...</p>
-    </div>
-
-    <div class="empty-state" *ngIf="!deletedLoading && deletedTasks.length === 0">
-      <div class="empty-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <h3>Nothing in Recently Deleted</h3>
-      <p>Deleted tasks will appear here for two weeks before they are removed for good.</p>
-    </div>
-
-    <div class="empty-state compact" *ngIf="!deletedLoading && deletedTasks.length > 0 && filteredDeletedTasks.length === 0">
-      <h3>No matching deleted tasks</h3>
-      <p>Try a different search.</p>
-    </div>
-
-    <div class="deleted-list" *ngIf="!deletedLoading && filteredDeletedTasks.length > 0">
-      <article class="deleted-card" *ngFor="let task of filteredDeletedTasks; trackBy: trackByTaskId">
-        <div class="deleted-main">
-          <div class="deleted-icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="deleted-info">
-            <h3>{{ task.title }}</h3>
-            <p *ngIf="task.description">{{ task.description }}</p>
-            <div class="deleted-meta">
-              <span>{{ getDeletedAgoLabel(task) }}</span>
-              <span *ngIf="task.dateDue">Was due {{ task.dateDue | date:'mediumDate' }}</span>
-              <span *ngIf="task.subtasks?.length">{{ task.subtasks?.length }} subtasks</span>
-            </div>
-          </div>
-        </div>
-        <div class="deleted-side">
-          <div class="retention">
-            <div class="retention-label">
-              <span>{{ getRetentionLabel(task) }}</span>
-              <span class="muted">of {{ retentionDays }} days</span>
-            </div>
-            <div class="retention-bar">
-              <div class="retention-fill" [style.width.%]="getRetentionPercent(task)"></div>
-            </div>
-          </div>
-          <div class="deleted-actions">
-            <button class="btn btn-primary btn-sm" (click)="restoreTask(task)" [disabled]="restoring[task.id]">
-              {{ restoring[task.id] ? 'Restoring...' : 'Restore' }}
-            </button>
-            <button class="btn btn-ghost btn-sm danger-text" (click)="permanentlyDeleteTask(task)">Delete forever</button>
-          </div>
-        </div>
-      </article>
-    </div>
+    <app-deleted-tasks
+      [tasks]="deletedTasks"
+      [loading]="deletedLoading"
+      [searchQuery]="deletedSearchQuery"
+      (searchQueryChange)="deletedSearchQuery = $event"
+      (changed)="onDeletedChanged()">
+    </app-deleted-tasks>
   </div>
 
   <div class="content" *ngIf="activeTab === 'demo'">
@@ -254,184 +118,15 @@
     <div class="demo-cta">
       <h3>Ready to plan the next deadline?</h3>
       <p>Create a task, generate a plan, and keep everything in one place.</p>
-      <button class="btn btn-primary btn-lg" (click)="goToTasksAndCreate()">Create a task</button>
+      <button class="btn btn-primary btn-lg" type="button" (click)="goToTasksAndCreate()">Create a task</button>
     </div>
   </div>
 </main>
 
-<ng-template #taskCard let-task="task">
-  <div class="task-header">
-    <div class="task-checkbox">
-      <input type="checkbox" [id]="'task-' + task.id" [checked]="task.completed" (change)="toggleTaskCompleted(task)" />
-      <label [for]="'task-' + task.id"></label>
-    </div>
-    <div class="task-info" (click)="toggleExpand(task)">
-      <h3 class="task-title" [class.warning-text]="getTaskStatus(task) === 'warning'" [class.overdue-text]="getTaskStatus(task) === 'overdue'">{{ task.title }}</h3>
-      <div class="task-meta">
-        <span class="due-badge"
-              [class.overdue]="getTaskStatus(task) === 'overdue'"
-              [class.warning]="getTaskStatus(task) === 'warning'">
-          {{ getDaysRemaining(task.dateDue) }}
-        </span>
-        <span class="due-date" *ngIf="task.dateDue">{{ task.dateDue | date:'MMM d, h:mm a' }}</span>
-      </div>
-    </div>
-    <div class="task-actions">
-      <button class="btn-icon" title="Edit" (click)="startEditTask(task)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <button class="btn-icon expand-btn" [class.expanded]="task.expanded" (click)="toggleExpand(task)" title="Expand">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <button class="btn-icon danger" title="Delete" (click)="deleteTask(task)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-    </div>
-  </div>
+<app-create-task
+  [open]="showCreateForm"
+  (closed)="hideCreateForm()"
+  (created)="onTaskCreated()">
+</app-create-task>
 
-  <div class="progress-container">
-    <div class="progress-bar">
-      <div class="progress-fill" [style.width.%]="getProgressPercent(task)"></div>
-    </div>
-    <span class="progress-text">{{ getProgressPercent(task) }}%</span>
-  </div>
-
-  <p class="task-description" *ngIf="task.description">{{ task.description }}</p>
-
-  <div class="edit-form" *ngIf="editingTask[task.id]">
-    <div class="form-group">
-      <label>Title</label>
-      <input type="text" [(ngModel)]="taskEditInputs[task.id].title" />
-    </div>
-    <div class="form-group">
-      <label>Due Date</label>
-      <input type="datetime-local" [(ngModel)]="taskEditInputs[task.id].dateDue" />
-    </div>
-    <div class="form-group">
-      <label>Description</label>
-      <textarea [(ngModel)]="taskEditInputs[task.id].description" rows="2"></textarea>
-    </div>
-    <div class="form-actions">
-      <button class="btn btn-secondary btn-sm" (click)="cancelEditTask(task)">Cancel</button>
-      <button class="btn btn-primary btn-sm" (click)="saveTask(task)">Save</button>
-    </div>
-  </div>
-
-  <div class="task-expanded" *ngIf="task.expanded">
-    <div class="ai-actions">
-      <button class="btn btn-ai" (click)="generateAiSubtasks(task)" [disabled]="generating[task.id]">
-        <svg *ngIf="!generating[task.id]" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        <span class="spinner-sm" *ngIf="generating[task.id]"></span>
-        {{ generating[task.id] ? 'Generating...' : 'Generate Subtasks' }}
-      </button>
-      <button class="btn btn-ai" (click)="rearrangeSubtasks(task)" [disabled]="rearranging[task.id]" *ngIf="task.subtasks && task.subtasks.length > 0">
-        <svg *ngIf="!rearranging[task.id]" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="spinner-sm" *ngIf="rearranging[task.id]"></span>
-        {{ rearranging[task.id] ? 'Reorganizing...' : 'AI Reorganize' }}
-      </button>
-      <button class="btn btn-ai btn-warning" (click)="adjustTimeframe(task)" [disabled]="adjustingFrame[task.id]" *ngIf="canAdjustTimeframe(task)">
-        <svg *ngIf="!adjustingFrame[task.id]" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        <span class="spinner-sm" *ngIf="adjustingFrame[task.id]"></span>
-        {{ adjustingFrame[task.id] ? 'Adjusting...' : 'Adjust Timeframe' }}
-      </button>
-      <button class="btn btn-ai" [class.btn-warning]="needsExtensionRecommendation(task)" [class.btn-danger]="isOverdue(task.dateDue)" (click)="recommendExtension(task)" [disabled]="recommendingExtension[task.id]" *ngIf="canRecommendExtension(task)">
-        <svg *ngIf="!recommendingExtension[task.id]" width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        <span class="spinner-sm" *ngIf="recommendingExtension[task.id]"></span>
-        {{ recommendingExtension[task.id] ? 'Extending...' : 'Extend Deadline' }}
-      </button>
-    </div>
-
-    <div class="subtasks-section">
-      <h4>Subtasks <span class="count" *ngIf="task.subtasks">({{ task.subtasks.length }})</span></h4>
-
-      <div class="subtask-list" *ngIf="task.subtasks && task.subtasks.length > 0">
-        <div class="subtask-item" *ngFor="let st of task.subtasks" [class.completed]="st.completed" [class.overdue]="isSubtaskOverdue(st)">
-          <div class="subtask-main">
-            <input type="checkbox" [checked]="st.completed" (change)="toggleSubtaskCompleted(task, st)" />
-            <div class="subtask-info" *ngIf="!subtaskEditInputs[st.id!]">
-              <span class="subtask-title">{{ st.title }}</span>
-              <span class="subtask-desc" *ngIf="st.description">{{ st.description }}</span>
-              <div class="subtask-dates">
-                <span *ngIf="st.dateStart">Start: {{ st.dateStart | date:'short' }}</span>
-                <span *ngIf="st.dateDue">Due: {{ st.dateDue | date:'short' }}</span>
-              </div>
-            </div>
-            <div class="subtask-edit-form" *ngIf="subtaskEditInputs[st.id!]">
-              <input type="text" [(ngModel)]="subtaskEditInputs[st.id!].title" placeholder="Title" />
-              <input type="text" [(ngModel)]="subtaskEditInputs[st.id!].description" placeholder="Description" />
-              <input type="datetime-local" [(ngModel)]="subtaskEditInputs[st.id!].dateDue" />
-              <div class="subtask-edit-actions">
-                <button class="btn btn-secondary btn-xs" (click)="cancelEditSubtask(st)">Cancel</button>
-                <button class="btn btn-primary btn-xs" (click)="saveSubtask(task, st)">Save</button>
-              </div>
-            </div>
-          </div>
-          <div class="subtask-actions" *ngIf="!subtaskEditInputs[st.id!]">
-            <button class="btn-icon-sm" (click)="startEditSubtask(task, st)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2"/></svg>
-            </button>
-            <button class="btn-icon-sm danger" (click)="deleteSubtask(task, st)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" stroke-width="2"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <p class="no-subtasks" *ngIf="!task.subtasks || task.subtasks.length === 0">No subtasks yet. Generate a plan or add one below.</p>
-
-      <div class="add-subtask-form">
-        <div class="subtask-form-row">
-          <input type="text" [(ngModel)]="getSubtaskInput(task.id).title" placeholder="Subtask title..." class="input-title" />
-          <input type="datetime-local" [(ngModel)]="getSubtaskInput(task.id).dateDue" class="input-date" />
-        </div>
-        <div class="subtask-form-row">
-          <input type="text" [(ngModel)]="getSubtaskInput(task.id).description" placeholder="Description (optional)" class="input-desc" />
-          <button class="btn btn-primary btn-sm" (click)="createSubtask(task)">Add</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</ng-template>
-
-<div class="modal-overlay" *ngIf="showCreateForm" (click)="hideCreateForm()">
-  <div class="modal-content create-modal" (click)="$event.stopPropagation()">
-    <div class="modal-header">
-      <h3>Create a new task</h3>
-      <button class="modal-close" (click)="hideCreateForm()" aria-label="Close">&times;</button>
-    </div>
-    <form (ngSubmit)="createTask()" class="create-form">
-      <div class="form-group">
-        <label for="new-title">Title</label>
-        <input id="new-title" type="text" [(ngModel)]="newTask.title" name="title" placeholder="What needs to get done?" required />
-      </div>
-      <div class="form-group">
-        <label for="new-due">Due date</label>
-        <input id="new-due" type="datetime-local" [(ngModel)]="newTask.dateDue" name="dateDue" required />
-      </div>
-      <div class="form-group">
-        <label for="new-desc">Description</label>
-        <textarea id="new-desc" [(ngModel)]="newTask.description" name="description" rows="4" placeholder="Add enough context for a good AI plan..."></textarea>
-      </div>
-      <div class="modal-footer flush">
-        <button type="button" class="btn btn-secondary" (click)="hideCreateForm()">Cancel</button>
-        <button type="submit" class="btn btn-primary">Create Task</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="modal-overlay" *ngIf="showDeleteModal" (click)="closeDeleteModal()">
-  <div class="modal-content" (click)="$event.stopPropagation()">
-    <div class="modal-header">
-      <h3>{{ deleteModalTitle }}</h3>
-      <button class="modal-close" (click)="closeDeleteModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <p>{{ deleteModalMessage }}</p>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" (click)="closeDeleteModal()">Cancel</button>
-      <button class="btn btn-danger" (click)="confirmDelete()">{{ deleteModalConfirmLabel }}</button>
-    </div>
-  </div>
-</div>
+<app-confirmation-modal></app-confirmation-modal>

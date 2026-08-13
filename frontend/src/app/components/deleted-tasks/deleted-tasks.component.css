@@ -1,0 +1,143 @@
+.page-intro {
+  margin-bottom: 20px;
+}
+
+.page-intro h2 {
+  margin: 0 0 6px;
+  font-size: 28px;
+}
+
+.page-intro p {
+  margin: 0;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.toolbar {
+  display: flex;
+  margin-bottom: 20px;
+}
+
+.search-field {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 999px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.search-field input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+}
+
+.deleted-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.deleted-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  background: var(--color-surface, #fff);
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+}
+
+.deleted-main {
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+}
+
+.deleted-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: var(--color-text-secondary, #64748b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.deleted-info h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.deleted-info p {
+  margin: 0 0 8px;
+  color: var(--color-text-secondary, #64748b);
+  font-size: 14px;
+}
+
+.deleted-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.deleted-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.retention {
+  width: 100%;
+}
+
+.retention-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.retention-label .muted {
+  color: var(--color-text-secondary, #64748b);
+  font-weight: 500;
+}
+
+.retention-bar {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.retention-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #6366f1);
+  border-radius: 999px;
+}
+
+.deleted-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .deleted-card { flex-direction: column; }
+  .deleted-side { align-items: stretch; min-width: 0; }
+  .deleted-actions { width: 100%; }
+  .deleted-actions .btn { flex: 1; justify-content: center; }
+}
